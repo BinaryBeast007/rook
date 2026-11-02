@@ -1,0 +1,127 @@
+# electron-builder 26 configuration. Run through `pnpm dist*` from the repo root,
+# which builds the renderer and main process first.
+# Placeholders to replace before a public release: appId, copyright, Linux maintainer, the
+# author in package.json (shown as the Windows publisher), and the publish repo (it must be
+# public for installed apps to fetch updates).
+# Icons in resources/ are generated from assets/brand by `pnpm icons:export`.
+# The version comes from apps/desktop/package.json.
+appId: dev.rook.app
+productName: Rook
+copyright: Copyright © 2026 Abu Sayem
+artifactName: Rook-${version}-${os}-${arch}.${ext}
+directories:
+  output: release
+  buildResources: resources
+# Main and preload are bundled except node-pty, the one production dependency, which
+# electron-builder copies into node_modules. Its sources and debug symbols stay out.
+files:
+  - package.json
+  - dist-electron/**/*
+  - "!**/*.map"
+  - "!**/node_modules/node-pty/{src,deps,scripts,third_party,typings}/**"
+  - "!**/node_modules/node-pty/**/*.{pdb,gyp}"
+  - from: ../web/dist
+    to: renderer
+# node-pty loads .node binaries, spawns helpers (spawn-helper, OpenConsole.exe) and starts a
+# worker script from its own folder, none of which work from inside the asar archive.
+asarUnpack:
+  - "**/node_modules/node-pty/**"
+# node-pty's N-API prebuilds load in any Electron, so nothing is compiled for it.
+npmRebuild: false
+# The main process sets the window icon from these at runtime (src/icons.ts).
+extraResources:
+  - from: resources
+    to: .
+    filter: [icon.png, icon.ico]
+# Update feed for src/updates.ts. Builds only upload with `--publish always` (the release
+# workflow, on a version tag), into a draft release that goes live when published by hand.
+publish:
+  provider: github
+  owner: BinaryBeast007
+  repo: rook
+  releaseType: draft
+
+# Signing reads CSC_LINK / CSC_KEY_PASSWORD (or WIN_CSC_*) from the environment; without
+# them the build is unsigned.
+win:
+  icon: icon.ico
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    # No auto-update; x64 only, since a multi-arch portable unpacks both apps on every launch.
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+portable:
+  artifactName: Rook-${version}-${os}-${arch}-portable.${ext}
+
+# Hardened runtime and electron-builder's default entitlements (JIT, unsigned executable
+# memory, library validation off) apply whenever the app is signed. Signing reads CSC_LINK /
+# CSC_KEY_PASSWORD or the login keychain; notarization runs when APPLE_ID,
+# APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID (or APPLE_API_KEY*) are set.
+mac:
+  icon: icon-mac.png
+  category: public.app-category.developer-tools
+  # Projects often live in these folders; macOS shows the reason in its access prompt.
+  extendInfo:
+    NSDesktopFolderUsageDescription: Rook opens projects you keep on your Desktop.
+    NSDocumentsFolderUsageDescription: Rook opens projects you keep in Documents.
+    NSDownloadsFolderUsageDescription: Rook opens projects you keep in Downloads.
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    # The auto-updater installs from the zip.
+    - target: zip
+      arch: [arm64, x64]
+
+linux:
+  icon: icon.png
+  category: Development
+  executableName: rook
+  maintainer: Abu Sayem <maintainers@rook.invalid>
+  synopsis: Agentic development environment
+  # Names the .desktop file after package.json `desktopName`, matching Electron's Wayland app_id.
+  syncDesktopName: true
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+    # Needs rpmbuild on the build host (the `rpm` package on Debian/Ubuntu).
+    - target: rpm
+      arch: [x64, arm64]
+# packageName: the installed package's name (`apt remove rook`); it would otherwise come from
+# @rook/desktop. depends: electron-builder's defaults plus ALSA and GBM, which Electron loads at
+# startup but the defaults leave out (a minimal system fails with "libasound.so.2" missing).
+deb:
+  packageName: rook
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libasound2t64 | libasound2
+    - libgbm1
+rpm:
+  packageName: rook
+  depends:
+    - gtk3
+    - libnotify
+    - nss
+    - libXScrnSaver
+    - (libXtst or libXtst6)
+    - xdg-utils
+    - at-spi2-core
+    - (libuuid or libuuid1)
+    - (libsecret or libsecret-1-0)
+    - (alsa-lib or libasound2)
+    - (mesa-libgbm or libgbm1)
+  # Own /opt/Rook itself, so removing the package removes the folder too.
+  fpm: ["--directories", "/opt/Rook"]

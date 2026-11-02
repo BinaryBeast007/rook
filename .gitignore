@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output and caches
+dist/
+dist-electron/
+release/
+coverage/
+*.tsbuildinfo
+.vite/
+.cache/
+.eslintcache
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# Local configuration (the shared .vscode/settings.json and extensions.json stay tracked)
+*.local
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# AI assistant and tool state
+.claude/
+CLAUDE.local.md
+
+# Docs stay local, kept out of the public repo
+docs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

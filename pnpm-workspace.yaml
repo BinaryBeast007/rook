@@ -1,0 +1,72 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Exact pins shared by every workspace package.
+catalog:
+  # Cursor's official SDK: browser sign-in that mints a user API key (apps/desktop agent access).
+  "@cursor/sdk": 1.0.40
+  # Bundled UI and code fonts for Settings > Appearance (apps/web/src/theme/fonts.ts); bundled so
+  # they work offline and look the same on every platform.
+  "@fontsource-variable/fira-code": 5.3.0
+  "@fontsource-variable/geist": 5.3.0
+  "@fontsource-variable/geist-mono": 5.3.0
+  "@fontsource-variable/ibm-plex-sans": 5.3.0
+  "@fontsource-variable/inter": 5.3.0
+  "@fontsource-variable/jetbrains-mono": 5.3.0
+  "@fontsource/monaspace-argon": 5.3.0
+  "@fontsource/monaspace-krypton": 5.3.0
+  "@fontsource/monaspace-neon": 5.3.0
+  "@fontsource/monaspace-radon": 5.3.0
+  "@fontsource/monaspace-xenon": 5.3.0
+  # Rasterizes assets/brand SVGs for scripts/export-icons.mjs.
+  "@resvg/resvg-js": 2.6.2
+  "@tailwindcss/vite": 4.3.3
+  # Matches the Node.js 24 runtime embedded in Electron 45.
+  "@types/node": 24.19.2
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
+  "@vitejs/plugin-react": 6.1.2
+  # The Terminal tool's renderer (apps/web/src/tools/terminal).
+  "@xterm/addon-fit": 0.11.0
+  "@xterm/addon-web-links": 0.12.0
+  "@xterm/xterm": 6.0.0
+  electron: 45.0.0
+  electron-builder: 26.18.0
+  # Auto-update (apps/desktop/src/updates.ts); bundled into main. Shares builder-util-runtime
+  # 9.7.0 with electron-builder 26.18.0 (6.8.12 moved to 9.7.1).
+  electron-updater: 6.8.11
+  # Pseudo-terminals for the Terminal tool. The 1.2 beta line ships N-API prebuilds for
+  # win32, darwin and linux (x64, arm64), so Electron needs no rebuild.
+  node-pty: 1.2.0-beta.15
+  # GFM lexer for agent replies (apps/web/src/chat/markdown.ts); only its tokens are used, never its HTML.
+  marked: 18.1.2
+  # Drives the built Electron app in apps/desktop/e2e (no browser downloads).
+  playwright-core: 1.64.1
+  react: 19.3.1
+  react-dom: 19.3.1
+  # Code-block highlighting as tokens (apps/web/src/chat/highlight.ts), on its JS regex engine
+  # since the renderer CSP has no wasm-unsafe-eval; grammars load lazily.
+  shiki: 4.5.0
+  tailwindcss: 4.3.3
+  typescript: 7.0.2
+  # Vite+ ships its own Vite core; plugins that peer on `vite` resolve to it.
+  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
+  vite-plus: 1.4.0
+
+overrides:
+  vite: "catalog:"
+  vite-plus: "catalog:"
+
+# pnpm 11+ only runs dependency build scripts that are listed here.
+allowBuilds:
+  # electron-builder's optional Squirrel.Windows backend; Rook builds NSIS installers.
+  electron-winstaller: false
+  # Only checks for its prebuilt binary; compiles with node-gyp when the platform has none.
+  node-pty: true
+
+# `vite` is the Vite+ core (Vite 8 under the hood) whose package version is 1.x,
+# so semver checks against plugins' `vite@^8` peers would be false positives.
+peerDependencyRules:
+  allowedVersions:
+    vite: "*"

@@ -1,0 +1,4 @@
+# Keep LF everywhere so oxfmt output is identical on Windows, macOS, and Linux.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf

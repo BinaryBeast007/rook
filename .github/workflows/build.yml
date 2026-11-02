@@ -1,0 +1,119 @@
+# Checks, tests, and packages Rook on Windows, macOS, and Linux.
+# - Pull requests and main: packages for every OS and keeps them as workflow artifacts for a day.
+# - A `v*` tag matching apps/desktop/package.json's version: also uploads the packages and
+#   update feeds (latest*.yml) to a draft GitHub release. Publish the draft after testing it;
+#   installed apps only see published releases.
+# The e2e suites run against each packaged app after packaging, so a failure leaves the draft
+# unpublished. Signing secrets are optional; without them the builds are unsigned.
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, platform: win, app: release/win-unpacked/Rook.exe }
+          - { os: macos-latest, platform: mac, app: release/mac-arm64/Rook.app/Contents/MacOS/Rook }
+          - { os: ubuntu-latest, platform: linux, app: release/linux-unpacked/rook }
+    env:
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Linux packaging and display tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm xvfb
+          # Ubuntu 24.04 blocks the user namespaces Chromium's sandbox needs; installed .deb
+          # packages ship an AppArmor profile for this, the unpacked test build does not.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - run: pnpm install --frozen-lockfile
+      - name: Format, lint, typecheck, icons
+        if: runner.os == 'Linux'
+        run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+
+      - name: Tag matches the app version
+        if: env.RELEASE == 'true'
+        shell: bash
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "Tag $GITHUB_REF_NAME != version $version"; exit 1; }
+
+      - name: Package
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          # electron-builder reads a defined-but-empty CSC_LINK as a certificate path, so
+          # unset the signing variables whose secrets are missing.
+          for v in WIN_CSC_LINK WIN_CSC_KEY_PASSWORD CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -n "${!v}" ] || unset "$v"
+          done
+          pnpm exec electron-builder --${{ matrix.platform }} --publish ${{ env.RELEASE == 'true' && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Each OS gets only its own certificate; empty values leave the build unsigned.
+          WIN_CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+
+      - name: E2E against the packaged app
+        shell: bash
+        env:
+          ROOK_E2E_APP: ${{ github.workspace }}/apps/desktop/${{ matrix.app }}
+          ROOK_DISABLE_UPDATES: "1"
+        # One suite at a time: two apps with their shells and git on a 2-core runner starved the
+        # Windows Git status calls (the Git e2e failed only under that load).
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            # xvfb-run's default 640x480 screen squeezes the window to a ~30-column terminal.
+            xvfb-run -a -s "-screen 0 1920x1080x24" pnpm --filter @rook/desktop test:e2e --no-file-parallelism
+          else
+            pnpm --filter @rook/desktop test:e2e --no-file-parallelism
+          fi
+
+      # Release builds are already on the release; others are kept briefly to stay within storage.
+      - uses: actions/upload-artifact@v5
+        if: always() && env.RELEASE != 'true'
+        with:
+          name: rook-${{ matrix.platform }}
+          retention-days: 1
+          if-no-files-found: ignore
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.rpm
+            apps/desktop/release/*.yml

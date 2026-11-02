@@ -1,0 +1,50 @@
+{
+  "name": "@rook/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rook, a cross-platform agentic development environment.",
+  "homepage": "https://github.com/BinaryBeast007/rook",
+  "bugs": {
+    "url": "https://github.com/BinaryBeast007/rook/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Abu Sayem",
+    "email": "maintainers@rook.invalid"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BinaryBeast007/rook.git"
+  },
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vp pack",
+    "start": "electron .",
+    "test": "vp test run",
+    "typecheck": "tsc --noEmit",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "dist:linux:docker": "node scripts/dist-docker.mjs",
+    "test:e2e": "vp test run --config e2e/vitest.config.ts"
+  },
+  "dependencies": {
+    "node-pty": "catalog:"
+  },
+  "devDependencies": {
+    "@cursor/sdk": "catalog:",
+    "@rook/contracts": "workspace:*",
+    "@types/node": "catalog:",
+    "electron": "catalog:",
+    "electron-builder": "catalog:",
+    "electron-updater": "catalog:",
+    "playwright-core": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "desktopName": "rook.desktop",
+  "productName": "Rook"
+}

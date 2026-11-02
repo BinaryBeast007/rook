@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* Brand colors from assets/brand, the Rook theme's canvas and text. The active theme rebinds these,
+   the neutral ladder, white/black and the status scales on <html> (src/theme/themes.ts says what
+   each name means), so components keep writing text-neutral-500 or bg-white/6 and every theme
+   reaches them. Never write a raw color in a component; theme.test.ts checks. */
+@theme {
+  --color-ink: #0e0e10;
+  --color-paper: #f4f3ef;
+  /* The sidebar and the tool panel. */
+  --color-panel: #070709;
+  /* What a tool's opaque fills match: ink, or panel inside the tool panel, which rebinds it. */
+  --color-surface: var(--color-ink);
+  /* Menus, popovers and dialogs. */
+  --color-raised: #141416;
+  /* Text selection, caret and terminal cursor. */
+  --color-accent: #f4f3ef;
+  /* Claude's brand orange, for its logo: the same in every theme. */
+  --color-brand-claude: #d97757;
+  /* Below text-xs, only for badges, tags, counters and code-block labels. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  /* Onboarding's one entrance: settles in from an already-visible start. */
+  --animate-rise: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0.35;
+      transform: translateY(10px);
+    }
+  }
+
+  /* Modal entrance: the panel settles a few pixels, its backdrop fades in. */
+  --animate-dialog-in: dialog-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 160ms ease-out both;
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+:root {
+  color-scheme: dark;
+  /* Keep in sync with TITLE_BAR_HEIGHT in apps/desktop/src/window.ts. */
+  --title-bar-height: 40px;
+  --title-bar-inset: 0px;
+  /* Room for the native caption buttons Windows and Linux draw over the title bar's right end
+     (Window Controls Overlay reports the free area; 140px covers them if it doesn't). */
+  --title-bar-right: calc(
+    100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 140px))
+  );
+}
+
+/* Appearance settings, mirrored onto <html> by applyAppearance (src/settings/settings.ts), which
+   also sets --code-font-size. Text size scales the root font size, so rem-based sizes follow. */
+:root {
+  --chat-width: 48rem;
+  --code-font-size: 12px;
+}
+:root[data-text-size="small"] {
+  font-size: 15px;
+}
+:root[data-text-size="large"] {
+  font-size: 17px;
+}
+:root[data-chat-width="wide"] {
+  --chat-width: 64rem;
+}
+:root[data-chat-width="full"] {
+  --chat-width: 100%;
+}
+
+/* text-code: tool output, diffs and file previews. text-code-block: chat code blocks, a pixel up. */
+@theme inline {
+  --text-code: var(--code-font-size);
+  --text-code-block: calc(var(--code-font-size) + 1px);
+  /* An opaque warning panel that floats over content (an error notice). */
+  --color-warning-surface: color-mix(in oklab, var(--color-amber-400) 9%, var(--color-raised));
+}
+
+/* A plain browser tab has no caption buttons. */
+:root:not([data-platform]) {
+  --title-bar-right: 0px;
+}
+
+/* Room for the macOS traffic lights. */
+:root[data-platform="darwin"] {
+  --title-bar-inset: 64px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* The window never scrolls as a page; views scroll themselves. Absolutely positioned bits that
+   escape their scroller (an .sr-only label deep in the chat) would otherwise stretch the page.
+   clip, unlike hidden, can't be scrolled by focus or scrollIntoView either. */
+#root {
+  overflow: clip;
+}
+
+body {
+  @apply bg-ink font-sans text-neutral-200 antialiased select-none;
+}
+
+/* Quiet scrollbars that belong to the ink surface, not the OS default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-white) 14%, transparent) transparent;
+}
+
+::selection {
+  background-color: color-mix(in oklab, var(--color-accent) 28%, transparent);
+}
+
+input,
+textarea {
+  caret-color: var(--color-accent);
+}
+
+/* Find in chat (FindBar.tsx): every match, and the one under the cursor. */
+::highlight(chat-find) {
+  background-color: color-mix(in oklab, var(--color-amber-400) 28%, transparent);
+}
+::highlight(chat-find-current) {
+  background-color: color-mix(in oklab, var(--color-amber-400) 75%, transparent);
+  color: var(--color-ink);
+}
+
+/* Lets the frameless window be dragged by its title bar. */
+@utility app-region-drag {
+  -webkit-app-region: drag;
+}
+
+/* Controls inside a drag region must opt out to receive clicks. */
+@utility app-region-no-drag {
+  -webkit-app-region: no-drag;
+}
